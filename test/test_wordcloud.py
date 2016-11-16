@@ -1,11 +1,15 @@
 from wordcloud import WordCloud, get_single_color_func
 import numpy as np
 from random import Random
-from nose.tools import assert_equal, assert_greater, assert_true, assert_raises
+from nose.tools import (assert_equal, assert_greater, assert_true,
+                        assert_raises, assert_in, assert_not_in)
 from numpy.testing import assert_array_equal
 from PIL import Image
 
+
 from tempfile import NamedTemporaryFile
+import matplotlib
+matplotlib.use('Agg')
 
 THIS = """The Zen of Python, by Tim Peters
 
@@ -29,6 +33,47 @@ If the implementation is hard to explain, it's a bad idea.
 If the implementation is easy to explain, it may be a good idea.
 Namespaces are one honking great idea -- let's do more of those!
 """
+
+
+def test_collocations():
+    wc = WordCloud(collocations=False, stopwords=[])
+    wc.generate(THIS)
+
+    wc2 = WordCloud(collocations=True, stopwords=[])
+    wc2.generate(THIS)
+
+    assert_in("is better", wc2.words_)
+    assert_not_in("is better", wc.words_)
+    assert_not_in("way may", wc2.words_)
+
+
+def test_plurals_numbers():
+    text = THIS + "\n" + "1 idea 2 ideas three ideas although many Ideas"
+    wc = WordCloud(stopwords=[]).generate(text)
+    # not capitalized usually
+    assert_not_in("Ideas", wc.words_)
+    # plural removed
+    assert_not_in("ideas", wc.words_)
+    # usually capitalized
+    assert_not_in("although", wc.words_)
+    assert_in("idea", wc.words_)
+    assert_in("Although", wc.words_)
+    assert_in("better than", wc.words_)
+
+
+def test_multiple_s():
+    text = 'flo flos floss flosss'
+    wc = WordCloud(stopwords=[]).generate(text)
+    assert_in("flo", wc.words_)
+    assert_not_in("flos", wc.words_)
+    assert_in("floss", wc.words_)
+    assert_in("flosss", wc.words_)
+    # not normalizing means that the one with just one s is kept
+    wc = WordCloud(stopwords=[], normalize_plurals=False).generate(text)
+    assert_in("flo", wc.words_)
+    assert_in("flos", wc.words_)
+    assert_in("floss", wc.words_)
+    assert_in("flosss", wc.words_)
 
 
 def test_default():
@@ -91,7 +136,7 @@ def test_check_errors():
 
 
 def test_recolor():
-    wc = WordCloud(max_words=50)
+    wc = WordCloud(max_words=50, colormap="jet")
     wc.generate(THIS)
     array_before = wc.to_array()
     wc.recolor()
@@ -179,16 +224,9 @@ def test_process_text():
 
 
 def test_generate_from_frequencies():
-    # test that generate_from_frequencies() takes input argument of class
-    # 'dict_items'
+    # test that generate_from_frequencies() takes input argument dicts
     wc = WordCloud(max_words=50)
     words = wc.process_text(THIS)
-    items = words.items()
-    result = wc.generate_from_frequencies(items)
+    result = wc.generate_from_frequencies(words)
 
     assert_true(isinstance(result, WordCloud))
-
-
-def check_parameters():
-    # check that parameters are actually used
-    pass
